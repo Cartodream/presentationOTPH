@@ -1,0 +1,784 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<title> Carte interactive </title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<!--[if lte IE 8]>
+			<script>alert("Your web browser does not work well with this application. Please upgrade it or choose another browser.");</script>
+		<![endif]-->
+		
+		<link rel="stylesheet" href="css/foundation.min.css">
+		<link rel="stylesheet" href="css/normalize.css">
+		<!-- https://unpkg.com/leaflet@0.7.3/dist/leaflet.css -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+		<!-- https://unpkg.com/leaflet.markercluster@1.0.0/dist/MarkerCluster.css -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+		<!-- https://unpkg.com/leaflet.markercluster@1.0.0/dist/MarkerCluster.Default.css -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+		<link rel="stylesheet" href="css/style.css">
+		<!-- Installation Plugin Leaflet Draw CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw-src.css">
+		
+		
+		<!-- https://unpkg.com/leaflet@0.7.3/dist/leaflet-src.js -->
+		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet-src.js"></script>
+		<!-- https://unpkg.com/leaflet.markercluster@1.0.0/dist/leaflet.markercluster-src.js -->
+		<script src="script/leaflet.markercluster-src.js"></script>
+		<!-- Installation Plugin Leaflet Draw JS -->
+		<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw-src.js"></script>
+
+		<!-- Installation Easy Button -->
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+		<script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
+
+		<!-- Fuzzysearch : https://github.com/stefanocudini/leaflet-search -->
+		<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.src.css"> -->
+		<!-- https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.src.css -->
+		<!-- <script src="https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.src.js"></script> -->
+		<!-- https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.src.js -->
+
+		<!-- JSDELIVR : https://github.com/jsdelivr/jsdelivr#usage -->
+			<!-- https://github.com/jsdelivr/jsdelivr#github -->
+
+		<!-- Chargement de Leaflet-FuseSearch -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/1.2.2/fuse.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/gh/naomap/leaflet-fusesearch@1e356c69b2b77e76b8931ded3efe27992ea47a0c/src/leaflet.fusesearch.js"></script>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/naomap/leaflet-fusesearch@1e356c69b2b77e76b8931ded3efe27992ea47a0c/src/leaflet.fusesearch.css">
+
+		<!-- on rajoute la librairie Leaflet Fuse Search car Leaflet Search n'a pas la fonction de recherche voulue -->
+
+		<!--on laisse celui la pour l'instant -->
+
+		<script type="text/javascript" src="donnees/AA.js"></script>
+		<script type="text/javascript" src="donnees/circuits_vtt.js"></script>
+		<script type="text/javascript" src="donnees/AOA.js"></script>
+		<script type="text/javascript" src="donnees/Coeur.js"></script>
+		<script type="text/javascript" src="donnees/communes.js"></script>
+		<script type="text/javascript" src="donnees/POI.js"></script>
+		<script type="text/javascript" src="donnees/batiments.js"></script>
+		
+		
+		<script type="text/javascript" src="donnees/sentiers_PDIPR.js"></script>
+		
+		<script>
+		var map;
+		var markers = L.markerClusterGroup(); // initialisation de la variable pour les clusters
+		
+		// création de deux tableaux vides pour récupérer l'ensemble des années et catégories et gérer leur sélection/désélection
+		var tabCategories = new Array();
+		var poiLayers = new Array(); // tableau qui contiendra les features (données GeoJSON d'un point) et leur marker associé
+		var routeLayers = new Array();
+		
+		function displayRouteLayer(routeLayerId) {
+			var isChecked = document.getElementById(routeLayerId).checked;
+			if ((isChecked==true)&&(!map.hasLayer(routeLayers[routeLayerId]))){
+				routeLayers[routeLayerId].addTo(map);
+			} else {
+				if ((isChecked==false)&&(map.hasLayer(routeLayers[routeLayerId]))){
+					map.removeLayer(routeLayers[routeLayerId]);
+				}
+			}
+		}
+	
+		function initialize() {
+		
+		/************************************************************************************************************************/
+		/******************************************************* LA CARTE *******************************************************/
+		/************************************************************************************************************************/
+		
+//*******************CHARGEMENT DE LA CARTE***********************	
+			//définition des options de la carte : centre, zoom, zoom maximum
+			var point = new L.LatLng(48.81826349423801, 1.6032443265782088);
+			var optionsDefaut = {
+				center: point,
+				zoom: 11,
+				zoomControl : false,
+				maxZoom: 20,
+				// drawControl: true
+			};
+
+			//création de la carte et ajout du fond de carte
+			map = new L.Map('mymap', optionsDefaut);
+
+			
+
+
+			var mapbox = new L.TileLayer('http://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+				attribution: 'Cartographie : <a href="https://cartodream.wixsite.com/website-1">Cartodream</a> , <a href="https://www.openstreetmap.fr/">OSM</a>'});
+			map.addLayer(mapbox);
+			
+			var photos_aériennes = new L.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+				attribution: 'Cartographie : <a href="https://cartodream.wixsite.com/website-1">Cartodream</a> , <a href="https://www.openstreetmap.fr/">OSM</a>Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'});
+			// map.addLayer(photos_aériennes);	
+
+			var watercolor = new L.TileLayer('http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+				attribution: 'Cartographie : <a href="https://cartodream.wixsite.com/website-1">Cartodream</a> , <a href="https://www.openstreetmap.fr/">OSM</a>Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'});
+			// map.addLayer(watercolor);
+	
+											
+			
+			//FIN TESTS
+			
+			//création de baseMaps et overlay Maps
+			var baseMaps = {
+			"OpenStreet Map" : mapbox,
+			"Vue aérienne" : photos_aériennes,
+			"watercolor" : watercolor,
+			};
+			 
+			//ajout des controles de la carte : zoom, échelle, contrôle des couches
+			map.addControl(L.control.zoom({position: 'topright'}));
+			map.addControl(L.control.scale({
+				position: 'bottomright',
+				imperial: false
+			}));
+			L.control.layers(baseMaps).addTo(map)
+			
+			// FeatureGroup envoie vers une couche editable + controles de dessin
+			var drawnItems = new L.FeatureGroup();
+			map.addLayer(drawnItems);
+
+
+
+			// Create toggle button for draw controls
+			var displayDrawControls = false;
+			var toggleDraw = L.easyButton('Dessiner', function (btn, map) {
+				if (displayDrawControls) {
+					map.removeControl(drawControl);
+					displayDrawControls = false;
+				} else {
+					map.addControl(drawControl);
+					displayDrawControls = true;
+				}
+			});
+
+
+
+			// Function
+			function downloadObjectAsJson (exportObj, exportName) {
+				var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+				var downloadAnchorNode = document.createElement('a');
+				downloadAnchorNode.setAttribute("href", dataStr);
+				downloadAnchorNode.setAttribute("download", exportName + ".json");
+				document.body.appendChild(downloadAnchorNode); // required for firefox
+				downloadAnchorNode.click();
+				downloadAnchorNode.remove();
+			}
+
+			// Create download button
+			var downloadButton = L.easyButton('Télécharger', function () {
+				var geojsonData = drawnItems.toGeoJSON();
+				downloadObjectAsJson(geojsonData, 'Votre dessin');
+			});
+
+
+
+			map.on(L.Draw.Event.CREATED, function (e) {
+				drawnItems.addLayer(e.layer);
+			});
+
+	
+			
+//********************AJOUT DES COUCHES GEOJSON DES PARCS***********************************
+				
+// debut sentiers PDIPR ----------------------------------------
+				// contenu popup sentiers PDIPR
+			function onEachFeature2(feature, layer) {
+				var popupContent = "";
+				if (feature.properties && feature.properties.nom) {
+					popupContent += '<h6><b>'+feature.properties.nom+'</b></h6>';
+					if (feature.properties && feature.properties.longueur) {
+						popupContent += '<b>Longueur :</b> '+feature.properties.longueur+'<br>';
+					}
+					if (feature.properties && feature.properties.denivele) {
+						popupContent += '<b>Denivelé :</b> '+feature.properties.denivele+' m<br>';
+					}
+					if (feature.properties && feature.properties.trace_gps) {
+						popupContent += '<b>Trace GPS :</b> <a target="_blank" href='+feature.properties.trace_gps+'> fichier GPX à télécharger </a><br>';
+					}
+					if (feature.properties && feature.properties.site_web) {
+						popupContent += '<b>Plus d\'infos :</b> <a target="_blank" href='+feature.properties.site_web+'> Carte et détails de la randonnée </a><br>';
+					}
+					
+					if (feature.properties && feature.properties.source) {
+						popupContent += '<b>Source des données :</b> '+feature.properties.source+'<br>';
+					}
+				}
+				layer.bindPopup(popupContent);
+			}
+			
+				// Crée un style ( une couleur différente pour chacun) pour les sentiers
+				// Set up styles for subway lines
+			function sentierStyle(feature) {
+				return {
+					"color": feature.properties.couleur,
+					"size":15,
+					"weight": 9,
+					"opacity": 1,
+					"fillOpacity": 0,
+					"clickable": true
+				};
+			}          
+							
+				//ajout sentiers PDIPR
+			var sentiers_pdipr = L.geoJson(sentiersPDIPR,{
+				style: sentierStyle, 
+				onEachFeature: onEachFeature2
+			});
+			routeLayers["sentiers_pdipr"] = sentiers_pdipr;
+			
+			//  fin sentiers PDIPR  -----------------------------------------------
+//****************************************FUZZY SEARCH**************************************************************
+			
+			// https://github.com/naomap/leaflet-fusesearch/blob/master/src/leaflet.fusesearch.js
+			L.Control.CustomFuseSearch = L.Control.FuseSearch.extend({
+				// Surcharge de la méthode createResultItem de FuseSearch
+				createResultItem: function(props, container, popup) {
+					var _this = this;
+					var feature = props._feature;
+					// Create a container and open the associated popup on click
+					var resultItem = L.DomUtil.create('p', 'result-item', container);
+
+					if (undefined !== popup) {
+						L.DomUtil.addClass(resultItem, 'clickable');
+						resultItem.onclick = function() {
+							if (window.matchMedia("(max-width:480px)").matches) {
+								_this.hidePanel();
+								feature.layer.openPopup();
+							} else {
+								_this._panAndPopup(feature, popup);
+							}
+						};
+
+					} else {
+						// Personnalisation de la méthode `createResultItem()`
+						L.DomUtil.addClass(resultItem, 'clickable');
+						resultItem.onclick = function() {
+							var longitude = feature.geometry.coordinates[0];
+							var latitude = feature.geometry.coordinates[1];
+							map.flyTo([latitude, longitude], 18);
+						};
+						// Fin de la personnalisation
+					}
+
+					// Fill in the container with the user-supplied function if any,
+					// otherwise display the feature properties used for the search.
+					if (null !== this.options.showResultFct) {
+						this.options.showResultFct(feature, resultItem);
+					} else {
+						str = '<b>' + props[this._keys[0]] + '</b>';
+						for (var i = 1; i < this._keys.length; i++) {
+							str += '<br/>' + props[this._keys[i]];
+						}
+						resultItem.innerHTML = str;
+					};
+
+					return resultItem;
+				},
+			});
+
+			// controle Fuzzy search en utilisant la version personnalisée de FuseSearch
+			var searchCtrl = new L.Control.CustomFuseSearch({});
+			//searchCtrl.addTo(map);
+
+			// https://github.com/naomap/leaflet-fusesearch#usage
+        	searchCtrl.indexFeatures(poi, ["NOM", "descriptif"]);
+			
+			
+//*******************FIN FUZZY SEARCH***************************************************************			
+// debut batiments ----------------------------------------
+				// contenu popup batiments
+			function onEachFeature20(feature, layer) {
+				var popupContent = "";
+				if (feature.properties && feature.properties.nom) {
+					popupContent += '<h6><b>'+feature.properties.nom+'</b></h6>';
+					if (feature.properties && feature.properties.longueur) {
+						popupContent += '<b>Section :</b> '+feature.properties.longueur+'<br>';
+					}
+					if (feature.properties && feature.properties.denivele) {
+						popupContent += '<b>Parcelle :</b> '+feature.properties.denivele+'<br>';
+					}
+					if (feature.properties && feature.properties.trace_gps) {
+						popupContent += '<b>contenance :</b> '+feature.properties.trace_gps+' m²<br>';
+					}
+			}
+				layer.bindPopup(popupContent);
+			}
+			
+				// Crée un style ( une couleur différente pour chacun) pour les sentiers
+				// Set up styles for subway lines
+			function batimentsStyle(feature) {
+				return {weight: 2,
+						opacity: 1,
+						color: '#063970',
+						fillColor: '#063970',
+						fillOpacity: 0.5,
+						interactive: false,
+				};
+			}          
+							
+				//ajout batiments
+			var batiments = L.geoJson(abatiments,{
+				style: batimentsStyle, 
+				
+			}).addTo(map);
+			
+			
+			//  fin batiments  -----------------------------------------------
+						
+	// contenu popup Circuits VTT
+				function onEachFeature23(feature, layer) {
+				var popupContent = "";
+				if (feature.properties && feature.properties.nom) {
+						popupContent += '<b>Denivelé :</b> '+feature.properties.nom+' m<br>';
+					}
+			
+				layer.bindPopup(popupContent);
+			}			
+
+
+				//ajout de l'aire d'adhesion
+			var adhesion = L.geoJson(AA,{
+				style: {weight: 100,
+						opacity: 1,
+						"weight": 100,
+						color: '#088A08',
+						fillColor: '#088A08',
+						fillOpacity: 0.5,
+						clickable: true,
+				
+				}
+			})
+			
+			
+
+// debut Circuits VTT ----------------------------------------
+				// contenu popup Circuits VTT
+				function onEachFeature3(feature, layer) {
+				var popupContent = "";
+				if (feature.properties && feature.properties.nom) {
+					popupContent += '<h6><b>'+feature.properties.nom+'</b></h6>';
+					if (feature.properties && feature.properties.longueur) {
+						popupContent += '<b>Longueur :</b> '+feature.properties.longueur+'<br>';
+					}
+					if (feature.properties && feature.properties.denivele) {
+						popupContent += '<b>Denivelé :</b> '+feature.properties.denivele+' m<br>';
+					}
+					if (feature.properties && feature.properties.difficulte) {
+						popupContent += '<b>Niveau VTT FFC :</b> '+feature.properties.difficulte+'<br>';
+					}
+					if (feature.properties && feature.properties.trace_gps) {
+						popupContent += '<b>Trace GPS :</b> <a target="_blank" href='+feature.properties.trace_gps+'> fichier GPX à télécharger </a><br>';
+					}
+					if (feature.properties && feature.properties.site_web) {
+						popupContent += '<b>Plus d\'infos :</b> <a target="_blank" href='+feature.properties.site_web+'> Parcours et détail circuit VTT </a><br>';
+					}
+					
+					if (feature.properties && feature.properties.source) {
+						popupContent += '<b>Source des données :</b> '+feature.properties.source+'<br>';
+					}
+				}
+				layer.bindPopup(popupContent);
+			}
+			
+				// Crée un style ( une couleur différente pour chacun) pour les circuits VTT
+				// Set up styles for subway lines
+			function VTTStyle(feature) {
+				return {
+					"color": feature.properties.couleur,
+					"weight": 5,
+					"opacity": 1,
+					"fillOpacity": 0,
+					"clickable": true
+				};
+			}          
+							
+				//ajout circuits VTT
+			var circuits_vtt = L.geoJson(vtt,{
+				style: VTTStyle, 
+				onEachFeature: onEachFeature3
+			});
+			routeLayers["circuits_vtt"] = circuits_vtt;
+			
+			//  fin circuits vtt  -----------------------------------------------		
+			
+				
+			
+			
+			
+			var geojsonMarkerOptions = {
+				radius: 8,
+				fillColor: "#ff7800",
+				color: "#000",
+				weight: 1,
+				opacity: 1,
+				fillOpacity: 0.8
+			};
+			
+				var OTicon = new L.icon({
+				iconUrl: 'image/pictos/OT.png',
+				iconSize: [25,25], // taille de l'icone en pixels
+				iconAnchor: [13,13], // définition du point d'ancrage du picto par rapport au coin supérieur gauche
+				popupAnchor: [0,-13] // définition du point d'ancrage de l'infobulle associée au picto, par rapport à l''iconAnchor'
+			});
+			
+				var HANDICAPicon = new L.icon({
+				iconUrl: 'image/handicap_moteur.png',
+				iconSize: [25,25], // taille de l'icone en pixels
+				iconAnchor: [13,13], // définition du point d'ancrage du picto par rapport au coin supérieur gauche
+				popupAnchor: [0,-13] // définition du point d'ancrage de l'infobulle associée au picto, par rapport à l''iconAnchor'
+			});
+			
+
+//*****************CREATION DES PICTOS************************
+			function categorieToPicto(categorie) {
+				var file_name;
+				file_name = categorie.replace(/ /gi,'_');
+				file_name = file_name.toLowerCase();
+				file_name = file_name.replace(new RegExp(/[àáâãäå]/g),"a");
+				file_name = file_name.replace(new RegExp(/æ/g),"ae");
+				file_name = file_name.replace(new RegExp(/ç/g),"c");
+				file_name = file_name.replace(new RegExp(/[èéêë]/g),"e");
+				file_name = file_name.replace(new RegExp(/[ìíîï]/g),"i");
+				file_name = file_name.replace(new RegExp(/ñ/g),"n");
+				file_name = file_name.replace(new RegExp(/[òóôõö]/g),"o");
+				file_name = file_name.replace(new RegExp(/œ/g),"oe");
+				file_name = file_name.replace(new RegExp(/[ùúûü]/g),"u");
+				file_name = file_name.replace(new RegExp(/[ýÿ]/g),"y");
+				file_name = file_name.replace(new RegExp(/'/g),"\'");
+				return file_name;
+			}
+
+			function definePicto(categorie) {
+				return L.icon({
+					iconUrl: 'image/'+categorieToPicto(categorie)+'.png',
+					iconSize: [25,25], // taille de l'icone en pixels
+					iconAnchor: [13,13], // définition du point d'ancrage du picto par rapport au coin supérieur gauche
+					popupAnchor: [0,-13] // définition du point d'ancrage de l'infobulle associée au picto, par rapport à l''iconAnchor'
+				});
+			}
+			
+			// définition des paramètres d'affichage des données
+			var optionsAffichageDonnees = {
+				pointToLayer: function (feature, latlng) { // fonction qui permet de transformer l'entité récupérée dans le geoJson en marker sur la carte
+					if (((feature.properties.sous_cat) != null) && ((feature.properties.sous_cat) != ""))
+						return new L.Marker(latlng, {icon: definePicto(feature.properties.sous_cat)});
+				}
+			}
+			
+// *******************DEFINITION DE L'AFFICHAGE DE BASE DES DONNEES*************************
+			for(var i = 0; i < poi.features.length; i++) { // pour chaque entité du fichier geoJson POI
+				var currentFeature = poi.features[i]; // on récupère l'entité courante dans une variable currentFeature
+				// On récupère les catégories pour chaque feature
+				if (tabCategories[currentFeature.properties.categorie] == null) { // si la catégorie de l'entité courante n'est pas initialisée dans le tableau tabCategories
+					tabCategories[currentFeature.properties.categorie] = new Array(); // on lui affecte un nouveau tableau
+				}
+				if (currentFeature.properties.sous_cat!=null) // si l'entité courante possède une sous catégorie
+					tabCategories[currentFeature.properties.categorie][currentFeature.properties.sous_cat] = true; // on lui affecte 'true' qui indiquera que les entités appartenant à cette sous-catégorie doivent être affichées sur la carte (au lancement de l'application)
+				else // si l'entité courante ne possède pas de sous-catégorie, c'est donc que sa catégorie ne possède pas de sous-catégories
+					tabCategories[currentFeature.properties.categorie]=true; // on affecte 'true' directement à cette catégorie dans le tableau tabCategories, ce qui indique que les entités appartenant à cette catégorie doivent être affichées sur la carte (au lancement de l'application)
+				
+				// On récupère les features et on créé leur couche associée. Pour le fonctionnement des clusters, on récupère le marker correspondant à chaque feature.
+				// L'index correspond à l'identifiant de la feature (supposé unique)
+				poiLayers[currentFeature.properties.id] = {
+					"feature": currentFeature,
+					"marker": optionsAffichageDonnees.pointToLayer(currentFeature, L.latLng(currentFeature.geometry.coordinates[1], currentFeature.geometry.coordinates[0]))
+				};
+				// définition des popup et de leur contenu
+				popupOptions = {minWidth:350, maxWidth:350, maxHeight:400}; //on défini la largeur max des popups à 400 pixels
+				var popupContent = '<h6><b><center>'+currentFeature.properties.nom+'</center></b></h6>'; // on créé une variable correspondant au contenu de la popup. On commence par lui affecter l'intitulé de l'entité
+				if (currentFeature.properties.photo != null && currentFeature.properties.photo != "") { // si l'entité courante contient un lien ou plusieurs liens vers des photos
+					var photos = currentFeature.properties.photo; // On récupère les photos dans une variable
+					var tabPhotos = photos.split(";");
+					if (tabPhotos.length == 1) { // s'il existe une seule photo, on l'affiche simplement
+						if (tabPhotos[0].indexOf("http",0) != -1) {
+							popupContent += '<center><img style="max-height: 250px; max-width:290px !important;" src="'+tabPhotos[0]+'"></center>';
+						} else {
+							popupContent += '<center><div style="width:290px; height: 250px;"><img style="max-height: 250px; max-width:290px !important;" src="image/'+tabPhotos[0]+'"></div></center>';
+						}
+					} else { // s'il existe plusieurs photos, on créé un diaporama
+						popupContent += '<div style="width:290px; height: 300px;"><ul class="rslides">';
+						for (j in tabPhotos) {
+							if (tabPhotos[0].indexOf("http",0) != -1) {
+								popupContent += '<li><img src="'+tabPhotos[j]+'" alt=""></li>';
+							} else {
+								popupContent += '<li><img src="image/'+tabPhotos[j]+'" alt=""></li>';
+							}
+						}
+						popupContent += '</ul></div>';
+					}
+					if (currentFeature.properties.source != null) // si une source est affectée à cette image
+						popupContent += '<center>'+currentFeature.properties.source+'</center><br>'; // on l'ajoute au contenu de la popup
+				}
+				if (currentFeature.properties.video != null) { // si l'entité courante contient l'identifiant d'une vidéo youtube, on l'ajoute au contenu de la popup
+					popupContent += '<center><iframe width="350" height="230" src="https://www.youtube.com/embed/'+currentFeature.properties.video+'" frameborder="0" allowfullscreen></iframe></center>';
+					if (currentFeature.properties.source != null) // si une source est affectée
+						popupContent += '<center>'+currentFeature.properties.source+'</center><br>'; // on l'ajoute au contenu de la popup
+				}
+				if ((currentFeature.properties.copyright != null) && (currentFeature.properties.copyright != ""))
+					popupContent += '<center>'+currentFeature.properties.copyright+'</center><br>';
+				if ((currentFeature.properties.descriptif != null) && (currentFeature.properties.descriptif != "")) // si l'entité courante a un descriptif non vide
+					popupContent += currentFeature.properties.descriptif+'<br><br>'; // on ajoute ce descriptif au contenu de la popup
+				if ((currentFeature.properties.adresse != null) && (currentFeature.properties.adresse != ""))
+					popupContent += currentFeature.properties.adresse+'<br>';
+				if ((currentFeature.properties.cp != null) && (currentFeature.properties.cp != ""))
+					popupContent += currentFeature.properties.cp+" ";
+				if ((currentFeature.properties.commune != null) && (currentFeature.properties.commune != "")) // si l'entité courante est rattachée à une commune
+					popupContent += currentFeature.properties.commune+'<br>'; // on ajoute cette commune au contenu de la popup
+				if ((currentFeature.properties.tel != null) && (currentFeature.properties.tel != ""))
+					popupContent += '<b>Tél : </b>'+currentFeature.properties.tel+'<br>';
+				if ((currentFeature.properties.mail != null) && (currentFeature.properties.mail != ""))
+					popupContent += '<b>Email : </b>'+currentFeature.properties.mail+'<br>';
+				if ((currentFeature.properties.site_web != null) && (currentFeature.properties.site_web != "")) // si l'entité courante a un lien
+					popupContent += '<b>Plus d\'infos : </b><a target="_blank" href="'+currentFeature.properties.site_web+'">'+currentFeature.properties.site_web+'</a><br>'; // on ajoute ce lien au contenu de la popup
+				// dans le tableau poiLayers, on affecte au marker de l'entité correspondante une popup dont le contenu vient d'être défini
+				if (typeof(poiLayers[currentFeature.properties.id].marker)!="undefined") {
+				poiLayers[currentFeature.properties.id].marker.bindPopup (popupContent, popupOptions);
+				// ajoute un événement "popupopen" au marker qui va exécuter la fonction suivante une fois la popup ouverte
+				poiLayers[currentFeature.properties.id].marker.on("popupopen", function() {
+					// on lance le slider à l'ouverture de la popup
+					$(".rslides").responsiveSlides({
+						auto: true,
+						pager: true,
+						nav: false,
+						speed: 500,
+						namespace: "centered-btns"
+					});
+				});
+				// on ajoute à notre marker-cluster une couche contenant le marker correspondant à l'entité courante
+				markers.addLayer(poiLayers[currentFeature.properties.id].marker);
+				}
+			}
+
+			map.addLayer(markers); // on ajoute notre 'markerClusterGroup' à la carte 
+
+//**********************LEGENDE***************************	
+
+			// Fonction qui retourne le code couleur correspondant à l'élément passé en paramètre de la forme CTPN, CMPN, AMAPN, AAPN, APAPN	
+			var legend = L.control({position: 'bottomright'}); // création d'une variable contenant la légende de la carte
+
+			legend.onAdd = function (map) {
+				var div = L.DomUtil.create('div', 'info legend');
+				div.innerHTML += '<i style="border: 8px solid #088A08;"></i>  Aire d&#145;adhésion du parc national (AA)<br>';
+				div.innerHTML += '<i style="border: 8px solid #badd69;"></i>  Coeur du parc national <br>';
+				return div;
+				};
+			
+						
+			
+			
+
+/************************************************************************************************************************/
+/****************************************************** MENU GAUCHE *****************************************************/
+/************************************************************************************************************************/
+	
+// ************************AFFICHAGE DU MENU DE GAUCHE : SELECTION DES ANNEES & CATEGORIES*************************				
+			// fonction qui permet d'ajouter les différentes cases à cocher dans le menu de gauche
+			function addDataCheckboxElement(idCheckbox, categorie, overlay_style, overlay_type) {
+			// overlay_style 	Style de l'entité (color, opacity, etc.). Sert à afficher un overlay dans la légende s'il n'est pas nul. Sinon, un pictogramme sera affiché
+			// overlay_type		Type de l'entité : Path, Area. Permet de varier l'affichage de la légende (carré ou simple ligne)
+				if (categorie == "sous_categorie")  // s'il s'agit d'une sous-catégorie, on ajoute la case à cocher avec une marge plus importante à gauche et on utilise une police plus petite
+					if (overlay_style) {
+						var checkbox_picture = "";
+						if (overlay_style == "Path") {
+							checkbox_picture = '<span style="position:relative; width:25px; height:25px;"><span style="position:absolute; height:12.5px;';
+							if (overlay_style.color) {
+								checkbox_picture += 'border-bottom: '+overlay_style.weight+'px solid '+overlay_style.color+';';
+							}
+							checkbox_picture += '"></span></span>';
+						} else {
+							checkbox_picture = '<span style="width:25px; height:25px; ';
+							if (overlay_style.color) {
+								checkbox_picture += 'border: '+overlay_style.weight+'px solid '+overlay_style.color+';';
+							}
+							if (overlay_style.fillColor) {
+								checkbox_picture += 'background-color: '+fillColor+';';
+							}
+							checkbox_picture += '"></span>';
+						}
+						selectListElt.html(selectListElt.html() + '<li style="margin-left:8px; font-size:13px;"><input id="' + idCheckbox + '" type="checkbox" checked="true" onclick="onDisplayCheckBoxOverlayChanged(\'' + idCheckbox.replace("'","\\'") + '\', \'' + categorie + '\');"> '+checkbox_picture+'&nbsp' + idCheckbox + '</li>');
+					} else {
+						selectListElt.html(selectListElt.html() + '<li style="margin-left:8px; font-size:13px;"><input id="' + idCheckbox + '" type="checkbox" checked="true" onclick="onDisplayCheckBoxChanged(\'' + idCheckbox.replace("'","\\'") + '\', \'' + categorie + '\');"> <img style="width:25px; height:25px;" src="image/'+categorieToPicto(idCheckbox)+'.png">&nbsp' + idCheckbox + '</li>');
+					}
+				else {
+					if (categorie == "categorie"){ // s'il s'agit d'une catégorie on ajoute simplement la case à cocher : la case est par défaut cochée, on ne lui associe pas de pictogramme et on ajoute un événement au clic pour gérer l'affichage des données sur la carte
+							selectListElt.html(selectListElt.html() + '<li><input id="' + idCheckbox + '" type="checkbox" checked="true" onclick="onDisplayCheckBoxChanged(\'' + idCheckbox.replace("'","\\'") + '\', \'' + categorie + '\');">&nbsp;' + idCheckbox + '</li>');
+					} 
+				}
+			}
+
+			var selectListElt = $('#select-list');	// on récupère dans une variable l'élément correspondant à l'identifiant 'select-list' (attribué au menu de gauche)
+			selectListElt.html(selectListElt.html() + '<li><input id="circuits_vtt" type="checkbox" onclick="displayRouteLayer(\'circuits_vtt\')"><span style="position:relative; width:25px; height:18px; display:inline-block; margin-left:2px;"><span style="position:absolute; display:inline-block; height:12.5px; width:100%; border-bottom: 2px solid #FF0000"></span></span> Circuits de randonnées</li>');
+			selectListElt.html(selectListElt.html() + '<li><input id="sentiers_pdipr" type="checkbox" onclick="displayRouteLayer(\'sentiers_pdipr\')"><span style="position:relative; width:25px; height:18px; display:inline-block; margin-left:2px;"><span style="position:absolute; display:inline-block; height:12.5px; width:100%; border-bottom: 2px solid #6C0278"></span></span> Circuits VTT</li>');
+			
+			// ajout de toutes les catégories au menu de gauche
+			for (i in tabCategories){ // pour toutes les catégories de tabCategories
+				addDataCheckboxElement(i, "categorie");  // on ajoute les catégories au menu de gauche
+				for (j in tabCategories[i]) { // pour toutes les sous-catégories de la catégorie concernée
+					addDataCheckboxElement(j, "sous_categorie"); // on ajoute les sous-catégories au menu de gauche
+				}
+			}
+			
+			function resize() { // fonction qui redéfinit la taille de la carte et de la barre de titre
+	        	$('#mymap').css("height", ($(window).height() - $('.tab-bar').height()));
+				$('.tab-bar .middle').css("left", $('.left-small').width());
+				$('.tab-bar .middle').css("right", $('.right-small').width());
+				map.invalidateSize();
+			}
+			$(window).on("resize", resize); // appel de la fonction resize dès que la taille de la fenêtre est modifiée
+			resize(); // appel de la fonction resize au chargement de l'application
+			map.fitBounds(perimetre_gip.getBounds()); // zoom automatique sur l'emprise du perimètre d'étude
+		}
+		
+		//******************FONCTIONNEMENT DU MENU GAUCHE : FILTRER LES CATEGORIES********************	
+
+		// Fonction de mise à jour de l'affichage des pictos, appelée dès qu'il se passe une action au niveau du menu de gauche
+		function majAffichage() {
+			map.removeLayer(markers); // on commence par retirer de la carte tous les markers
+			for (idLayer in poiLayers) { // Pour chaque identifiant (clé) du tableau des features (entités)
+				var currentLayer = poiLayers[idLayer]; // on récupère l'entité courante dans une variable 'currentLayer'
+				// si l'entité courante possède une sous catégorie
+				if (tabCategories[currentLayer.feature.properties.categorie][currentLayer.feature.properties.sous_cat]!=null) {
+					// si la sous-catégorie de l'entité courante doit être affichée sur la carte et qu'au moins une année rattachée à cette entité doit être affichée
+					if (tabCategories[currentLayer.feature.properties.categorie][currentLayer.feature.properties.sous_cat]==true) {
+						if (! markers.hasLayer(currentLayer.marker)) { // si le marker n'est pas encore affiché
+							markers.addLayer(currentLayer.marker); // on l'affiche
+						}
+					} else { // il ne doit pas être affiché
+						if (markers.hasLayer(currentLayer.marker)) {// s'il est affiché
+							markers.removeLayer(currentLayer.marker); // on l'enlève
+						}
+					}
+				} else { // sinon : l'entité courante ne possède pas de sous-catégorie, donc uniquement une catégorie-mère
+					// si la catégorie de l'entité courante doit être affichée sur la carte et qu'au moins une année rattachée à cette entité doit être affichée
+					if (tabCategories[currentLayer.feature.properties.categorie]==true) {
+						if (! markers.hasLayer(currentLayer.marker)) { // si le marker n'est pas encore affiché
+							markers.addLayer(currentLayer.marker); // on l'affiche
+						}
+					} else { // il ne doit pas être affiché
+						if (markers.hasLayer(currentLayer.marker)) {// s'il est affiché
+							markers.removeLayer(currentLayer.marker); // on l'enlève
+						}
+					}
+				}
+			}
+			map.addLayer(markers); // on ajoute les markers mis à jour à la carte
+		}
+		
+		// Fonction qui récupère la catégorie correspondant à une sous catégorie donnée
+		function getCategorie(sousCategorie) {
+			for (i in tabCategories) { // pour chaque catégorie du tableau tabCategories
+				for (j in tabCategories[i]) { // pour toutes les sous-catégorie de cette catégorie
+					if (j==sousCategorie) // si la sous-catégorie courante correspond à la sous-catégorie recherchée
+						return i; // on retourne sa catégorie-mère
+				}
+			}
+		}
+		
+		// Fonction qui définit les catégories et sous catégories qui doivent être affichées ou non dès qu'une checkbox à été cliquée
+		function onDisplayCheckBoxChanged(idChangedElement, concernedAttribute) {
+			var isChecked = document.getElementById(idChangedElement).checked; // création d'un booléen dont la valeur est à 'true' si élément cliqué est coché, false sinon
+			var nothing_selected_category = true; // création d'un booléen qui déterminera si aucune catégorie n'est cochée	
+				if (concernedAttribute == "categorie") { // si l'élément cliqué est une catégorie
+					if (typeof(tabCategories[idChangedElement])=="boolean") { // si la catégorie cliquée est un booléan = si elle est une catégorie sans sous-catégories
+						tabCategories[idChangedElement] = isChecked; // on met à jour sa valeur dans tabCategories : true si elle vient d'être cochée, false sinon
+					} else { // sinon : la catégorie cliquée possède des sous-catégories
+						for (i in tabCategories[idChangedElement]){ // pour chaque sous-catégorie de la catégorie cliquée
+							tabCategories[idChangedElement][i] = isChecked; // on met à jour sa valeur dans tabCategories : true si sa catégorie mère vient d'être cochée, false sinon
+							document.getElementById(i).checked = isChecked; // on coche ou décoche la sous-catégorie de la même façon
+						}
+					}
+				} else if (concernedAttribute == "sous_categorie") { // si l'élément cliqué est une sous-catégorie
+					var changeElementCategory = getCategorie(idChangedElement); // création d'une variable contenant la catégorie-mère de la sous-catégorie sélectionnée
+					tabCategories[changeElementCategory][idChangedElement] = isChecked; // on met à jour sa valeur dans tabCategories : true si la sous-catégorie vient d'être cochée, false sinon
+					for (j in tabCategories[changeElementCategory]){ // pour toutes les sous-catégories appartenant à la catégorie-mère de la sous-catégorie cliquée
+						if (tabCategories[changeElementCategory][j] == true) // si au moins une catégorie est cochée
+							nothing_selected_category = false; 
+					}
+					if (nothing_selected_category == true) { // si aucune sous-catégorie n'est cochée
+						document.getElementById(changeElementCategory).checked = false; // on décoche la catégorie-mère
+					} else // si au moins une sous-catégorie est cochée
+						document.getElementById(changeElementCategory).checked = true; // on coche la catégorie-mère
+				}
+			
+			majAffichage(); // appelle de la fonction de mise à jour de l'affichage des données sur la carte
+		}
+
+		
+		</script>
+	</head>
+	<body onload="initialize();">
+		<div class="off-canvas-wrap offcanvas-overlap" data-offcanvas style="width: 100%; z-index:1;"> 
+			<nav class="tab-bar"> <!-- barre de titre -->
+				<section class="middle tab-bar-section"; id="menu_gauche"> <!-- bouton menu gauche -->
+					<a class="left-off-canvas-toggle"><img class="hide-for-small-only" src="image/btn_filtrer_categories.png"><img class="show-for-small-only" src="image/btn_filtrer_categories_icon.png"></a>
+				</section>
+				<section class="middle tab-bar-section"> <!-- zone de titre -->
+					<img data-interchange="[image/titre_petit.png, (small)], [image/titre_moyen.png, (medium)], [image/titre_grand.png, (large)]">
+				</section>
+				<section class="right-small" id="menu_droit"> <!-- bouton menu droit -->
+					<a style="cursor: default;" class="right-off-canvas-toggle"><img class="hide-for-small-only" src="image/btn_droit_vierge.png"><img class="show-for-small-only" src="image/btn_icon_droit_vierge.png"></a>
+				</section>
+			</nav>
+			<div class="inner-wrap">
+				<!-- menu gauche -->
+				
+				<section id="left-panel" class="left-off-canvas-menu">
+				<center><img src="image/logo-office-de-tourisme.jpg"/></center>
+				  <ul class="off-canvas-list menu-checkbox" id="select-list">
+				  </ul>
+				</section>
+				<section class="main-section">
+					<div id="mymap" style="width:100%;"></div>
+				</section>
+			</div>
+		</div>
+		<!-- création des bulles d'aide -->
+		
+		
+
+		<script src="script/modernizr.js"></script>
+		<script src="script/jquery.js"></script>
+		<script src="script/responsiveslides.min.js"></script>
+		<!--<script src="js/foundation/vendor/jquery.cookie.js"></script>-->
+		<script src="script/foundation.min.js"></script>
+		<script>
+			function onRideEnded() { // fonction appelée à la fin de l'affichage des bulles d'aide : on ferme les menus
+				$('.off-canvas-wrap').foundation('offcanvas', 'hide', 'offcanvas-overlap');
+				//$.cookie('gmf-joyride', 'ridden', {expires: 7});
+			}
+
+			$(document).foundation({
+			  offcanvas : {
+				// Sets method in which offcanvas opens.
+				// [ move | overlap_single | overlap ]
+				open_method: 'overlap_single', 
+				// Should the menu close when a menu link is clicked?
+				// [ true | false ]
+				close_on_click : false
+			  },
+			  // définition des options pour les bulles d'aide
+			  joyride: {
+				pre_ride_callback: function() { // avant l'affichage des bulles d'aide, on ouvre les menus gauche et droit
+					$('.off-canvas-wrap').foundation('offcanvas', 'show', 'offcanvas-overlap');
+				},
+				post_ride_callback: function() { 
+					onRideEnded();
+				}
+			  }
+			})
+
+			/*if(! $.cookie('gmf-joyride'))*/
+			$(document).foundation('joyride', 'start');
+
+			$(".joyride-close-tip").click(function() {
+			   onRideEnded();
+			});
+			$('.off-canvas-wrap').foundation('offcanvas', 'show', 'offcanvas-overlap');
+			$('#modal-help-accueil').foundation('reveal', 'open');
+
+		</script>
+	</body>
+</html>
